@@ -32,9 +32,20 @@ class LanguageManager: ObservableObject {
 }
 
 class ProgressManager: ObservableObject {
-    @Published var unlockedLevels: Set<Int> = [1]
-    @Published var stars: [Int: Int] = [:] // levelId: stars (1-3)
+    @Published var unlockedLevels: Set<Int> = [1] {
+        didSet { saveProgress() }
+    }
+    @Published var stars: [Int: Int] = [:] {
+        didSet { saveProgress() }
+    }
     @Published var totalStars: Int = 0
+    
+    private let unlockedKey = "unlockedLevels"
+    private let starsKey = "levelStars"
+    
+    init() {
+        loadProgress()
+    }
     
     func completeLevel(_ id: Int, starsEarned: Int) {
         unlockedLevels.insert(id + 1)
@@ -46,6 +57,25 @@ class ProgressManager: ObservableObject {
             stars[id] = starsEarned
         }
         totalStars = stars.values.reduce(0, +)
-        // Persist later with UserDefaults
+    }
+    
+    private func saveProgress() {
+        let unlockedArray = Array(unlockedLevels)
+        UserDefaults.standard.set(unlockedArray, forKey: unlockedKey)
+        
+        if let starsData = try? JSONEncoder().encode(stars) {
+            UserDefaults.standard.set(starsData, forKey: starsKey)
+        }
+    }
+    
+    private func loadProgress() {
+        if let unlockedArray = UserDefaults.standard.array(forKey: unlockedKey) as? [Int] {
+            unlockedLevels = Set(unlockedArray)
+        }
+        if let starsData = UserDefaults.standard.data(forKey: starsKey),
+           let decodedStars = try? JSONDecoder().decode([Int: Int].self, from: starsData) {
+            stars = decodedStars
+        }
+        totalStars = stars.values.reduce(0, +)
     }
 }
